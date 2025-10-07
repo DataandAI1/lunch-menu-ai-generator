@@ -143,6 +143,12 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.helper-text {
+  margin-top: var(--spacing-sm);
+  color: var(--secondary);
+  font-size: 0.95rem;
+}
+
 label {
   display: block;
   font-weight: 600;
