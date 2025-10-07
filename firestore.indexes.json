@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "menu_cache",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "week_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "menus",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "school_id",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "week_id",
+          "order": "DESCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
