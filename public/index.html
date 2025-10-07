@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🍽️ Lunch Menu Generator - AI-Powered School Meals</title>
-    <meta name="description" content="Generate beautiful weekly lunch menus with AI-powered food images, nutrition tracking, and allergen information.">
+    <title>🍽️ Lunch Menu Finder - Today's School Lunch</title>
+    <meta name="description" content="Quickly look up today's school lunch menu, nutrition facts, and allergen information.">
     
     <!-- Favicon -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍽️</text></svg>">
@@ -12,10 +12,6 @@
     <!-- CSS -->
     <link rel="stylesheet" href="/css/styles.css">
     
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
 </head>
 <body>
     <!-- Header -->
@@ -26,7 +22,7 @@
                     <span class="logo-icon">🍽️</span>
                     Lunch Menu Generator
                 </h1>
-                <p class="tagline">AI-powered school meal planning with nutrition tracking</p>
+                <p class="tagline">Instantly check today's school lunch with nutrition details</p>
             </div>
         </div>
     </header>
@@ -35,97 +31,49 @@
     <main class="main-content">
         <div class="container">
             
-            <!-- Step 1: URL Input -->
-            <section class="card" id="step-url">
+            <!-- Search Input -->
+            <section class="card" id="step-search">
                 <div class="card-header">
-                    <h2>🔗 Step 1: Enter Menu URL</h2>
-                    <p>Provide the link to your school's lunch menu page</p>
+                    <h2>🔍 Find Today's Lunch Menu</h2>
+                    <p>Enter the link to your school's lunch menu to see what's for lunch today.</p>
                 </div>
                 <div class="card-body">
                     <div class="form-group">
                         <label for="menu-url">School Menu URL</label>
-                        <input 
-                            type="url" 
-                            id="menu-url" 
+                        <input
+                            type="url"
+                            id="menu-url"
                             class="input-field"
                             placeholder="https://school.com/lunch-menu"
                             required
                         >
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="week-offset">Select Week</label>
-                        <select id="week-offset" class="input-field">
-                            <option value="-1">Last Week</option>
-                            <option value="0" selected>This Week</option>
-                            <option value="1">Next Week</option>
-                        </select>
-                    </div>
-                    
-                    <button id="btn-scrape" class="btn btn-primary btn-large">
-                        <span class="btn-icon">🔍</span>
-                        Scrape Menu
+
+                    <button
+                        id="btn-search"
+                        class="btn btn-primary btn-large"
+                        data-default-label="Find Today's Menu"
+                        data-loading-label="Fetching..."
+                    >
+                        <span class="btn-icon" aria-hidden="true">🍽️</span>
+                        <span class="btn-label">Find Today's Menu</span>
+                        <span class="btn-spinner hidden" aria-hidden="true"></span>
                     </button>
+
+                    <p id="today-label" class="helper-text"></p>
                 </div>
             </section>
 
-            <!-- Step 2: Menu Preview -->
-            <section class="card hidden" id="step-menu">
+            <!-- Today's Menu Result -->
+            <section class="card hidden" id="today-menu">
                 <div class="card-header">
-                    <h2>📋 Step 2: Review Menu</h2>
-                    <p id="menu-week-info">Week of ...</p>
+                    <h2>📋 Today's Lunch</h2>
+                    <p id="menu-date">&nbsp;</p>
                 </div>
                 <div class="card-body">
-                    <div id="menu-preview" class="menu-preview">
-                        <!-- Menu items will be inserted here -->
+                    <div id="menu-details" class="menu-preview">
+                        <!-- Menu details inserted here -->
                     </div>
-                    
-                    <div class="button-group">
-                        <button id="btn-edit-menu" class="btn btn-secondary">
-                            <span class="btn-icon">✏️</span>
-                            Edit Menu
-                        </button>
-                        <button id="btn-generate" class="btn btn-primary btn-large">
-                            <span class="btn-icon">🎨</span>
-                            Generate Calendar
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Step 3: Calendar Result -->
-            <section class="card hidden" id="step-result">
-                <div class="card-header">
-                    <h2>✨ Your Weekly Menu Calendar</h2>
-                    <p>Generated successfully!</p>
-                </div>
-                <div class="card-body">
-                    <div id="calendar-preview" class="calendar-container">
-                        <img id="calendar-image" alt="Weekly Menu Calendar" />
-                    </div>
-                    
-                    <div class="export-options">
-                        <h3>Export Options</h3>
-                        <div class="button-group">
-                            <button id="btn-download-png" class="btn btn-secondary">
-                                <span class="btn-icon">🖼️</span>
-                                Download PNG
-                            </button>
-                            <button id="btn-download-pdf" class="btn btn-secondary">
-                                <span class="btn-icon">📄</span>
-                                Download PDF
-                            </button>
-                            <button id="btn-email" class="btn btn-secondary">
-                                <span class="btn-icon">📧</span>
-                                Email Menu
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <button id="btn-new-menu" class="btn btn-primary">
-                        <span class="btn-icon">🆕</span>
-                        Create New Menu
-                    </button>
                 </div>
             </section>
 
@@ -133,32 +81,6 @@
             <div id="loading-overlay" class="loading-overlay hidden">
                 <div class="loading-spinner"></div>
                 <p id="loading-text" class="loading-text">Processing...</p>
-            </div>
-
-            <!-- Email Modal -->
-            <div id="email-modal" class="modal hidden">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h3>📧 Email Menu</h3>
-                        <button class="modal-close" onclick="closeEmailModal()">×</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-group">
-                            <label for="recipient-email">Recipient Email</label>
-                            <input 
-                                type="email" 
-                                id="recipient-email" 
-                                class="input-field"
-                                placeholder="parent@email.com"
-                                required
-                            >
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-secondary" onclick="closeEmailModal()">Cancel</button>
-                        <button id="btn-send-email" class="btn btn-primary">Send Email</button>
-                    </div>
-                </div>
             </div>
 
         </div>

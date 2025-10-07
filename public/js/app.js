@@ -1,320 +1,231 @@
 /**
- * Lunch Menu Generator - Frontend Application
- * Handles UI interactions and API calls to Firebase Functions
+ * Lunch Menu Finder - Frontend Application
+ * Simplified UI for retrieving today's lunch menu.
  */
-
-// Firebase Configuration
-const firebaseConfig = {
-  // These will be replaced with your actual Firebase config
-  apiKey: "YOUR_API_KEY",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
-};
-
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-// State
-let currentMenuData = null;
-let currentWeekId = null;
-let currentCalendarUrl = null;
-let currentPdfUrl = null;
 
 // DOM Elements
 const elements = {
-  // Step 1
   menuUrl: document.getElementById('menu-url'),
-  weekOffset: document.getElementById('week-offset'),
-  btnScrape: document.getElementById('btn-scrape'),
-  
-  // Step 2
-  stepMenu: document.getElementById('step-menu'),
-  menuWeekInfo: document.getElementById('menu-week-info'),
-  menuPreview: document.getElementById('menu-preview'),
-  btnEditMenu: document.getElementById('btn-edit-menu'),
-  btnGenerate: document.getElementById('btn-generate'),
-  
-  // Step 3
-  stepResult: document.getElementById('step-result'),
-  calendarImage: document.getElementById('calendar-image'),
-  btnDownloadPng: document.getElementById('btn-download-png'),
-  btnDownloadPdf: document.getElementById('btn-download-pdf'),
-  btnEmail: document.getElementById('btn-email'),
-  btnNewMenu: document.getElementById('btn-new-menu'),
-  
-  // Loading & Modal
+  btnSearch: document.getElementById('btn-search'),
+  btnLabel: document.querySelector('#btn-search .btn-label'),
+  btnSpinner: document.querySelector('#btn-search .btn-spinner'),
+  resultCard: document.getElementById('today-menu'),
+  menuDate: document.getElementById('menu-date'),
+  menuDetails: document.getElementById('menu-details'),
+  todayLabel: document.getElementById('today-label'),
   loadingOverlay: document.getElementById('loading-overlay'),
-  loadingText: document.getElementById('loading-text'),
-  emailModal: document.getElementById('email-modal'),
-  recipientEmail: document.getElementById('recipient-email'),
-  btnSendEmail: document.getElementById('btn-send-email')
+  loadingText: document.getElementById('loading-text')
 };
 
-// Event Listeners
+const BUTTON_LABELS = {
+  default:
+    (elements.btnSearch && elements.btnSearch.dataset.defaultLabel) ||
+    (elements.btnLabel ? elements.btnLabel.textContent.trim() : "Find Today's Menu"),
+  loading:
+    (elements.btnSearch && elements.btnSearch.dataset.loadingLabel) ||
+    'Loading...'
+};
+
 function initEventListeners() {
-  elements.btnScrape.addEventListener('click', handleScrapeMenu);
-  elements.btnGenerate.addEventListener('click', handleGenerateCalendar);
-  elements.btnDownloadPng.addEventListener('click', handleDownloadPng);
-  elements.btnDownloadPdf.addEventListener('click', handleDownloadPdf);
-  elements.btnEmail.addEventListener('click', showEmailModal);
-  elements.btnSendEmail.addEventListener('click', handleSendEmail);
-  elements.btnNewMenu.addEventListener('click', resetApp);
+  if (elements.btnSearch) {
+    elements.btnSearch.addEventListener('click', handleFindTodayMenu);
+  }
+
+  if (elements.menuUrl) {
+    elements.menuUrl.addEventListener('keydown', event => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        handleFindTodayMenu();
+      }
+    });
+  }
 }
 
-// API Calls
 async function callApi(endpoint, data) {
   try {
     const response = await fetch(`/api/${endpoint}`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
       },
       body: JSON.stringify(data)
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'API request failed');
+
+    const responseText = await response.text();
+    let jsonData = null;
+
+    if (responseText) {
+      try {
+        jsonData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError, responseText);
+        throw new Error('The server returned invalid JSON. Please try again later.');
+      }
     }
-    
-    return await response.json();
+
+    if (!response.ok) {
+      const errorMessage = jsonData && (jsonData.error || jsonData.message);
+      throw new Error(errorMessage || `Request failed with status ${response.status}`);
+    }
+
+    if (jsonData === null) {
+      throw new Error('Received an empty response from the server.');
+    }
+
+    return jsonData;
   } catch (error) {
     console.error('API Error:', error);
     throw error;
   }
 }
 
-// Step 1: Scrape Menu
-async function handleScrapeMenu() {
-  const url = elements.menuUrl.value.trim();
-  const weekOffset = parseInt(elements.weekOffset.value);
-  
+async function handleFindTodayMenu() {
+  const url = elements.menuUrl ? elements.menuUrl.value.trim() : '';
+
   if (!url) {
     showNotification('Please enter a valid URL', 'error');
     return;
   }
-  
-  showLoading('Scraping menu data...');
-  
+
+  hideResult();
+  const overlayMessage = "Fetching today's menu...";
+  setSearchButtonLoading(true);
+  showLoading(overlayMessage);
+
   try {
-    const result = await callApi('scrape-menu', { url, week_offset: weekOffset });
-    
-    currentMenuData = result.menu_data;
-    currentWeekId = result.week_id;
-    
-    displayMenuPreview(result.menu_data, result.week_info);
-    showStep('menu');
-    showNotification('Menu scraped successfully!', 'success');
-    
+    const result = await callApi('scrape-menu', { url });
+    displayTodayMenu(result);
+    showNotification("Today's menu loaded!", 'success');
   } catch (error) {
     showNotification(`Error: ${error.message}`, 'error');
   } finally {
     hideLoading();
+    setSearchButtonLoading(false);
   }
 }
 
-// Display Menu Preview
-function displayMenuPreview(menuData, weekInfo) {
-  elements.menuWeekInfo.textContent = `Week of ${weekInfo}`;
-  elements.menuPreview.innerHTML = '';
-  
-  const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-  
-  days.forEach(day => {
-    if (menuData[day]) {
-      const item = menuData[day];
-      const dayDiv = document.createElement('div');
-      dayDiv.className = 'menu-day';
-      
-      let nutritionHtml = '';
-      if (item.nutrition && item.nutrition.calories) {
-        nutritionHtml = `
-          <div class="menu-nutrition">
-            <span>🔥 ${item.nutrition.calories} cal</span>
-            ${item.nutrition.protein_g ? `<span>💪 ${item.nutrition.protein_g}g protein</span>` : ''}
-          </div>
-        `;
-      }
-      
-      let allergensHtml = '';
-      if (item.nutrition && item.nutrition.allergens && item.nutrition.allergens.length > 0) {
-        allergensHtml = `
-          <div class="menu-allergens">
-            ⚠️ Contains: ${item.nutrition.allergens.join(', ')}
-          </div>
-        `;
-      }
-      
-      dayDiv.innerHTML = `
-        <div class="menu-day-header">
-          <span class="menu-day-name">${day.charAt(0).toUpperCase() + day.slice(1)}</span>
-          <span class="menu-day-date">${item.date}</span>
-        </div>
-        <div class="menu-item-name">🍽️ ${item.name}</div>
-        ${nutritionHtml}
-        ${allergensHtml}
-      `;
-      
-      elements.menuPreview.appendChild(dayDiv);
-    }
-  });
-}
+function displayTodayMenu(data) {
+  const menuItem = data && data.menu_item;
 
-// Step 2: Generate Calendar
-async function handleGenerateCalendar() {
-  if (!currentMenuData) {
-    showNotification('No menu data available', 'error');
+  if (!menuItem) {
+    showNotification('No lunch information found for today.', 'error');
     return;
   }
-  
-  showLoading('Generating calendar with AI images...<br>This may take a few minutes.');
-  
-  try {
-    const result = await callApi('generate-calendar', {
-      menu_data: currentMenuData,
-      week_id: currentWeekId
-    });
-    
-    currentCalendarUrl = result.calendar_url;
-    currentPdfUrl = result.pdf_url;
-    
-    elements.calendarImage.src = currentCalendarUrl;
-    showStep('result');
-    showNotification('Calendar generated successfully!', 'success');
-    
-  } catch (error) {
-    showNotification(`Error: ${error.message}`, 'error');
-  } finally {
-    hideLoading();
+
+  const dayName = data.day ? capitalize(data.day) : capitalize(menuItem.day || '');
+  const dateText = data.date || menuItem.date || '';
+
+  if (elements.menuDate) {
+    const formatted = [dateText, dayName].filter(Boolean).join(' • ');
+    elements.menuDate.textContent = formatted || 'Today';
+  }
+
+  if (elements.menuDetails) {
+    elements.menuDetails.innerHTML = '';
+    elements.menuDetails.appendChild(renderMenuItem(menuItem));
+  }
+
+  if (elements.resultCard) {
+    elements.resultCard.classList.remove('hidden');
+    elements.resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 }
 
-// Download PNG
-function handleDownloadPng() {
-  if (currentCalendarUrl) {
-    const link = document.createElement('a');
-    link.href = currentCalendarUrl;
-    link.download = `lunch-menu-${currentWeekId}.png`;
-    link.click();
-    showNotification('Downloading PNG...', 'success');
+function renderMenuItem(menuItem) {
+  const container = document.createElement('div');
+  container.className = 'menu-day';
+
+  const nutrition = menuItem.nutrition || {};
+  const nutritionParts = [];
+
+  if (nutrition.calories) {
+    nutritionParts.push(`🔥 ${nutrition.calories} cal`);
   }
+  if (nutrition.protein_g) {
+    nutritionParts.push(`💪 ${nutrition.protein_g}g protein`);
+  }
+
+  const nutritionHtml = nutritionParts.length
+    ? `<div class="menu-nutrition">${nutritionParts.map(part => `<span>${part}</span>`).join('')}</div>`
+    : '';
+
+  const allergens = Array.isArray(nutrition.allergens) ? nutrition.allergens : [];
+  const allergensHtml = allergens.length
+    ? `<div class="menu-allergens">⚠️ Contains: ${allergens.join(', ')}</div>`
+    : '';
+
+  container.innerHTML = `
+    <div class="menu-day-header">
+      <span class="menu-day-name">${capitalize(menuItem.day || '')}</span>
+      <span class="menu-day-date">${menuItem.date || ''}</span>
+    </div>
+    <div class="menu-item-name">🍽️ ${menuItem.name || 'No menu available'}</div>
+    ${nutritionHtml}
+    ${allergensHtml}
+  `;
+
+  return container;
 }
 
-// Download PDF
-async function handleDownloadPdf() {
-  if (!currentPdfUrl) {
-    showLoading('Generating PDF...');
-    
-    try {
-      const result = await callApi('export-pdf', {
-        menu_data: currentMenuData,
-        week_id: currentWeekId
-      });
-      
-      currentPdfUrl = result.pdf_url;
-      
-      const link = document.createElement('a');
-      link.href = currentPdfUrl;
-      link.download = `lunch-menu-${currentWeekId}.pdf`;
-      link.click();
-      showNotification('Downloading PDF...', 'success');
-      
-    } catch (error) {
-      showNotification(`Error: ${error.message}`, 'error');
-    } finally {
-      hideLoading();
-    }
-  } else {
-    const link = document.createElement('a');
-    link.href = currentPdfUrl;
-    link.download = `lunch-menu-${currentWeekId}.pdf`;
-    link.click();
-    showNotification('Downloading PDF...', 'success');
+function hideResult() {
+  if (elements.resultCard) {
+    elements.resultCard.classList.add('hidden');
   }
-}
-
-// Email Modal
-function showEmailModal() {
-  elements.emailModal.classList.remove('hidden');
-}
-
-function closeEmailModal() {
-  elements.emailModal.classList.add('hidden');
-  elements.recipientEmail.value = '';
-}
-
-// Send Email
-async function handleSendEmail() {
-  const recipient = elements.recipientEmail.value.trim();
-  
-  if (!recipient) {
-    showNotification('Please enter a recipient email', 'error');
-    return;
-  }
-  
-  if (!currentCalendarUrl) {
-    showNotification('No calendar to send', 'error');
-    return;
-  }
-  
-  closeEmailModal();
-  showLoading('Sending email...');
-  
-  try {
-    await callApi('send-email', {
-      recipient,
-      calendar_url: currentCalendarUrl,
-      pdf_url: currentPdfUrl,
-      week_id: currentWeekId
-    });
-    
-    showNotification('Email sent successfully!', 'success');
-    
-  } catch (error) {
-    showNotification(`Error: ${error.message}`, 'error');
-  } finally {
-    hideLoading();
-  }
-}
-
-// UI Helpers
-function showStep(step) {
-  document.querySelectorAll('.card').forEach(card => {
-    if (card.id === `step-${step}`) {
-      card.classList.remove('hidden');
-      card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  });
 }
 
 function showLoading(text) {
-  elements.loadingText.innerHTML = text;
-  elements.loadingOverlay.classList.remove('hidden');
+  if (elements.loadingText) {
+    elements.loadingText.textContent = text;
+  }
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.remove('hidden');
+  }
 }
 
 function hideLoading() {
-  elements.loadingOverlay.classList.add('hidden');
+  if (elements.loadingOverlay) {
+    elements.loadingOverlay.classList.add('hidden');
+  }
+}
+
+function setSearchButtonLoading(isLoading, loadingLabel = BUTTON_LABELS.loading) {
+  if (!elements.btnSearch) return;
+
+  const { btnSearch, btnLabel, btnSpinner } = elements;
+  const labelText = isLoading ? loadingLabel : BUTTON_LABELS.default;
+
+  btnSearch.disabled = isLoading;
+  btnSearch.classList.toggle('is-loading', isLoading);
+
+  if (isLoading) {
+    btnSearch.setAttribute('aria-busy', 'true');
+  } else {
+    btnSearch.removeAttribute('aria-busy');
+  }
+
+  if (btnLabel) {
+    btnLabel.textContent = labelText;
+  }
+
+  if (btnSpinner) {
+    btnSpinner.classList.toggle('hidden', !isLoading);
+  }
 }
 
 function showNotification(message, type = 'info') {
-  // Simple notification - can be enhanced with a toast library
   const colors = {
     success: '#27ae60',
     error: '#e74c3c',
     info: '#3498db'
   };
-  
+
   const notification = document.createElement('div');
   notification.style.cssText = `
     position: fixed;
     top: 20px;
     right: 20px;
-    background: ${colors[type]};
+    background: ${colors[type] || colors.info};
     color: white;
     padding: 1rem 1.5rem;
     border-radius: 8px;
@@ -323,38 +234,29 @@ function showNotification(message, type = 'info') {
     animation: slideIn 0.3s ease;
   `;
   notification.textContent = message;
-  
+
   document.body.appendChild(notification);
-  
+
   setTimeout(() => {
     notification.style.animation = 'slideOut 0.3s ease';
     setTimeout(() => notification.remove(), 300);
   }, 3000);
 }
 
-function resetApp() {
-  currentMenuData = null;
-  currentWeekId = null;
-  currentCalendarUrl = null;
-  currentPdfUrl = null;
-  
-  elements.menuUrl.value = '';
-  elements.weekOffset.value = '0';
-  elements.stepMenu.classList.add('hidden');
-  elements.stepResult.classList.add('hidden');
-  
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+function capitalize(text) {
+  if (!text) return '';
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function showAbout() {
-  alert('Lunch Menu AI Generator v2.0\n\nAn intelligent web app for creating beautiful school lunch menus with AI.\n\nFeatures:\n• AI-powered scraping\n• Gemini image generation\n• Nutrition tracking\n• PDF export\n• Email sharing');
+  alert('Lunch Menu Finder\n\nQuickly look up today\'s school lunch using your menu link.');
 }
 
 function showPrivacy() {
-  alert('Privacy Policy\n\nWe respect your privacy:\n• No personal data is stored\n• API keys are secure\n• Images cached temporarily\n• Emails sent securely\n\nFor more info, visit our GitHub.');
+  alert('Privacy Notice\n\nNo personal data is stored. Menu links are used only to look up today\'s lunch.');
 }
 
-// CSS Animations
+// CSS Animations (unchanged)
 const style = document.createElement('style');
 style.textContent = `
   @keyframes slideIn {
@@ -367,7 +269,7 @@ style.textContent = `
       opacity: 1;
     }
   }
-  
+
   @keyframes slideOut {
     from {
       transform: translateX(0);
@@ -382,7 +284,20 @@ style.textContent = `
 document.head.appendChild(style);
 
 // Initialize
+if (elements.todayLabel) {
+  const today = new Date();
+  elements.todayLabel.textContent = `Today is ${today.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  })}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initEventListeners();
-  console.log('🍽️ Lunch Menu Generator loaded!');
+  console.log('🍽️ Lunch Menu Finder loaded!');
 });
+
+// Expose helper functions for footer links
+window.showAbout = showAbout;
+window.showPrivacy = showPrivacy;

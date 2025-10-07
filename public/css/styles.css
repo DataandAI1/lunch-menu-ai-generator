@@ -143,6 +143,12 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
+.helper-text {
+  margin-top: var(--spacing-sm);
+  color: var(--secondary);
+  font-size: 0.95rem;
+}
+
 label {
   display: block;
   font-weight: 600;
@@ -169,6 +175,7 @@ label {
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm) var(--spacing-lg);
   border: none;
@@ -178,6 +185,33 @@ label {
   cursor: pointer;
   transition: all 0.3s;
   text-decoration: none;
+  position: relative;
+}
+
+.btn[disabled],
+.btn.is-loading {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.btn-spinner {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 3px solid rgba(255, 255, 255, 0.4);
+  border-top-color: var(--white);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+
+.btn.is-loading .btn-icon,
+.btn.is-loading .btn-label {
+  opacity: 0;
+  transform: translateY(2px);
+}
+
+.btn.is-loading .btn-spinner {
+  display: inline-block;
 }
 
 .btn-primary {
