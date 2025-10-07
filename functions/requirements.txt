@@ -1,0 +1,17 @@
+# Firebase Functions
+functions-framework==3.*
+firebase-admin==6.*
+
+# API Integrations
+firecrawl-py==0.0.16
+google-generativeai==0.3.2
+
+# Image Processing
+Pillow==10.1.0
+
+# PDF Generation
+reportlab==4.0.7
+
+# Utilities
+requests==2.31.0
+python-dotenv==1.0.0
