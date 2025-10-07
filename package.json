@@ -1,0 +1,43 @@
+{
+  "name": "lunch-menu-ai-generator",
+  "version": "2.0.0",
+  "description": "AI-powered school lunch menu generator with Gemini image generation, nutritional tracking, and multi-format export",
+  "main": "index.js",
+  "scripts": {
+    "dev": "firebase emulators:start",
+    "build": "echo 'No build step required'",
+    "deploy": "firebase deploy",
+    "deploy:hosting": "firebase deploy --only hosting",
+    "deploy:functions": "firebase deploy --only functions",
+    "deploy:rules": "firebase deploy --only firestore:rules,storage:rules",
+    "logs": "firebase functions:log",
+    "test": "echo 'Tests not yet implemented'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DataandAI1/lunch-menu-ai-generator.git"
+  },
+  "keywords": [
+    "firebase",
+    "gemini",
+    "ai",
+    "school-lunch",
+    "menu-generator",
+    "firecrawl",
+    "nutrition",
+    "pdf-export"
+  ],
+  "author": "DataandAI1",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/DataandAI1/lunch-menu-ai-generator/issues"
+  },
+  "homepage": "https://github.com/DataandAI1/lunch-menu-ai-generator#readme",
+  "devDependencies": {
+    "firebase-tools": "^13.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
